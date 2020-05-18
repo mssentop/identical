@@ -29,17 +29,20 @@ dic_files = dict()
 # main loop where the given directories (if not any, then the current directory) are traversed.
 for dir_path in args.paths:
     for root, dirs, files in os.walk(dir_path, topdown=False):
+        exception = False
         hashes_list = list()  # store the hashes of contents in currently processed directory
         file_list = list()  # store the names of files if "-n" argument is given
         for dir in dirs:
-            if os.access(os.path.join(root, dir), os.R_OK):
+            try:
                 hashes_list.append(dic_dirs[os.path.join(root, dir)])
+            except:
+                print('Permission denied to read the directory: ', os.path.join(root, dir))
         for fil in files:
             file_hash = ""  # store the hash of the file
             if args.n:
                 file_hash = sha256(fil.encode('utf-8')).hexdigest()
                 if args.c:
-                    if os.access(os.path.join(root, fil), os.R_OK):
+                    try:
                         file_list.append(os.path.join(root, fil))
                         with open(os.path.join(root, fil),"rb") as f:  # get the content of the file in bytes
                             bytes = f.read()
@@ -48,17 +51,23 @@ for dir_path in args.paths:
                             hash_content = hash_find.hexdigest()
                             concat_hash = file_hash + hash_content  # concatenate name and content hashes for re-hashing
                             file_hash = sha256(concat_hash.encode('utf-8')).hexdigest()
+                    except:
+                        exception = True
+                        print('Permission denied to read the file: ', os.path.join(root, fil))
                 else:
                     hashes_list.append(file_hash)
             else:
-                if os.access(os.path.join(root, fil), os.R_OK):
+                try:
                     with open(os.path.join(root, fil),"rb") as f:
                         bytes = f.read()
                         hash_find = sha256()
                         hash_find.update(bytes)
                         file_hash = hash_find.hexdigest()
                     hashes_list.append(file_hash)
-            if os.access(os.path.join(root, fil), os.R_OK):
+                except:
+                    exception = True
+                    print('Permission denied to read the file: ', os.path.join(root, fil))
+            if not exception:
                 dic_files[os.path.join(root, fil)] = file_hash  # assign hash to the file
                 val = dic_file_hashes.setdefault(file_hash, [os.path.join(root, fil)])
                 if os.path.join(root, fil) not in val:  # update the paths list corresponding to the given hash
